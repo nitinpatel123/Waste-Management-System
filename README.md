@@ -44,7 +44,7 @@ Open http://localhost:5173
 ### Deploy as one website
 ```bash
 cd client && npm run build
-cd ../server   # set NODE_ENV=production, CLIENT_URL, TRUST_PROXY=1 (behind a proxy) in .env
+cd ../server   # set NODE_ENV=production, CLIENT_URL, app.set('trust proxy', 1); (behind a proxy) in .env
 npm start
 ```
 

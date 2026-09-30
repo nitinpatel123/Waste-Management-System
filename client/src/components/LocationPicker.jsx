@@ -3,7 +3,8 @@ import { MapContainer, TileLayer, CircleMarker, useMap, useMapEvents } from 'rea
 
 // Key-free OpenStreetMap tiles. The dark look comes from a CSS filter (see index.css).
 // CARTO's dark tiles now need an API key, so we no longer use them.
-export const DARK_TILES = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+export const DARK_TILES =
+  `https://api.maptiler.com/maps/streets/{z}/{x}/{y}.png?key=${import.meta.env.NDaPdsyx52Z4SejxaNTh}`;
 export const TILE_ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 export const DEFAULT_CENTER = [26.4499, 80.3319]; // set your city center here
 
