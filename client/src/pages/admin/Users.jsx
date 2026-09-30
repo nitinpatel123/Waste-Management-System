@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Users as UsersIcon, Search, Ban, UserCheck, ShieldCheck, Leaf } from 'lucide-react';
+import { Users as UsersIcon, Search, Ban, UserCheck, ShieldCheck, Leaf, Trash2, UserPlus, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api, { errMsg } from '../../api';
 import { useAuth } from '../../context/AuthContext';
@@ -15,6 +15,9 @@ export default function Users() {
   const [q, setQ] = useState('');
   const [role, setRole] = useState('');
   const [error, setError] = useState('');
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState({ name: '', email: '', password: '' });
+  const [saving, setSaving] = useState(false);
   const dq = useDebounced(q);
 
   const load = async () => {
@@ -33,6 +36,32 @@ export default function Users() {
     } catch (e) { toast.error(errMsg(e)); }
   };
 
+  const remove = async (u) => {
+    const isAdmin = u.role === 'admin';
+    if (!window.confirm(`Delete ${u.name} (${u.email})? This cannot be undone.`)) return;
+    let withData = false;
+    if (!isAdmin && u.complaints > 0)
+      withData = window.confirm('Also delete this user\'s complaints and pickup requests?\n\nOK = delete everything, Cancel = keep their complaint history.');
+    try {
+      await api.delete(`/admin/users/${u._id}`, { params: { withData } });
+      toast.success('User deleted');
+      load();
+    } catch (e) { toast.error(errMsg(e)); }
+  };
+
+  const addAdmin = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await api.post('/admin/users/admin', form);
+      toast.success('Admin created');
+      setForm({ name: '', email: '', password: '' });
+      setShowAdd(false);
+      load();
+    } catch (err) { toast.error(errMsg(err)); }
+    finally { setSaving(false); }
+  };
+
   if (error && !list) return <PageWrap wide><ErrorBox message={error} onRetry={load} /></PageWrap>;
   const citizens = list?.filter((u) => u.role === 'citizen').length || 0;
   const blocked = list?.filter((u) => u.active === false).length || 0;
@@ -40,6 +69,24 @@ export default function Users() {
   return (
     <PageWrap wide>
       <PageHeader icon={UsersIcon} title="Users" subtitle="Citizens and administrators" />
+
+      <div className="flex justify-end mb-4">
+        <button onClick={() => setShowAdd((v) => !v)} className="btn btn-primary !py-2 text-sm">
+          {showAdd ? <><X size={16} /> Close</> : <><UserPlus size={16} /> Add admin</>}
+        </button>
+      </div>
+
+      {showAdd && (
+        <form onSubmit={addAdmin} className="glass p-4 mb-4 grid sm:grid-cols-4 gap-3 items-end">
+          <input className="field !py-2 text-sm" placeholder="Full name" value={form.name} maxLength={60} required
+            onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          <input className="field !py-2 text-sm" type="email" placeholder="Email" value={form.email} maxLength={120} required
+            onChange={(e) => setForm({ ...form, email: e.target.value })} />
+          <input className="field !py-2 text-sm" type="password" placeholder="Password (8+ chars, letter + number)" value={form.password} maxLength={72} required
+            onChange={(e) => setForm({ ...form, password: e.target.value })} />
+          <button className="btn btn-primary !py-2 text-sm" disabled={saving}>{saving ? 'Creating...' : 'Create admin'}</button>
+        </form>
+      )}
 
       <div className="grid sm:grid-cols-3 gap-4">
         <KpiCard loading={!list} icon={UsersIcon} label="Accounts shown" value={list?.length} tone="sky" />
@@ -82,10 +129,15 @@ export default function Users() {
                     <td className="text-muted">{u.complaints}</td>
                     <td className="text-faint whitespace-nowrap">{fmtDate(u.createdAt)}</td>
                     <td><Badge cls={off ? TONES.rose : TONES.emerald}>{off ? 'Blocked' : 'Active'}</Badge></td>
-                    <td className="text-right">
+                    <td className="text-right whitespace-nowrap">
                       {!isAdmin && (
-                        <button onClick={() => toggle(u)} className={`btn btn-ghost !py-1.5 !px-3 text-xs ${off ? '' : 'hover:!border-rose-400 hover:!text-rose-300'}`}>
+                        <button onClick={() => toggle(u)} className={`btn btn-ghost !py-1.5 !px-3 text-xs mr-2 ${off ? '' : 'hover:!border-rose-400 hover:!text-rose-300'}`}>
                           {off ? <><UserCheck size={14} /> Unblock</> : <><Ban size={14} /> Block</>}
+                        </button>
+                      )}
+                      {u._id !== me.id && (
+                        <button onClick={() => remove(u)} className="btn btn-ghost !py-1.5 !px-3 text-xs hover:!border-rose-400 hover:!text-rose-300">
+                          <Trash2 size={14} /> Delete
                         </button>
                       )}
                     </td>

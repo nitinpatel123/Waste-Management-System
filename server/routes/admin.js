@@ -3,6 +3,8 @@ import Complaint, { COMPLAINT_STATUSES, COMPLAINT_TYPES } from '../models/Compla
 import PickupRequest, { PICKUP_STATUSES } from '../models/PickupRequest.js';
 import Notification from '../models/Notification.js';
 import User from '../models/User.js';
+import bcrypt from 'bcryptjs';
+import { checkPassword } from './auth.js';
 import { protect, adminOnly } from '../middleware/auth.js';
 import { aiLimiter } from '../middleware/security.js';
 import { asyncHandler, httpError } from '../utils/http.js';
@@ -209,6 +211,38 @@ router.patch('/users/:id/active', asyncHandler(async (req, res) => {
   u.active = active;
   await u.save();
   res.json({ id: u._id, active: u.active });
+}));
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Create a new admin (only an existing admin can do this). You can add as many admins as you want.
+router.post('/users/admin', asyncHandler(async (req, res) => {
+  const name = String(req.body.name || '').trim().slice(0, 60);
+  const email = String(req.body.email || '').trim().toLowerCase();
+  const password = req.body.password;
+  if (!name || !email || !password) throw httpError(400, 'Please fill in all fields');
+  if (!EMAIL_RE.test(email)) throw httpError(400, 'Please enter a valid email');
+  checkPassword(password);
+  if (await User.findOne({ email })) throw httpError(400, 'Email already registered');
+  const u = await User.create({ name, email, password: await bcrypt.hash(String(password), 12), role: 'admin' });
+  res.status(201).json({ id: u._id, name: u.name, email: u.email, role: u.role });
+}));
+
+// Delete an account. An admin can delete other admins, but never their own account,
+// and the last remaining admin can never be deleted (otherwise nobody could log in to the panel).
+router.delete('/users/:id', asyncHandler(async (req, res) => {
+  if (String(req.params.id) === String(req.user._id)) throw httpError(400, 'You cannot delete your own account');
+  const u = await User.findById(req.params.id);
+  if (!u) throw httpError(404, 'User not found');
+  if (u.role === 'admin' && (await User.countDocuments({ role: 'admin' })) <= 1)
+    throw httpError(400, 'Cannot delete the last admin');
+  await Promise.all([
+    Notification.deleteMany({ user: u._id }),
+    // Citizen data is kept unless the request says otherwise, so complaint history is not lost by accident.
+    ...(req.query.withData === 'true' ? [Complaint.deleteMany({ user: u._id }), PickupRequest.deleteMany({ user: u._id })] : []),
+  ]);
+  await u.deleteOne();
+  res.json({ message: 'User deleted' });
 }));
 
 export default router;

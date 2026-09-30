@@ -10,6 +10,7 @@
     "start": "node server.js",
     "seed": "node seed.js",
     "create-admin": "node scripts/createAdmin.js",
+    "delete-admin": "node scripts/deleteAdmin.js",
     "gen-secret": "node scripts/genSecret.js"
   },
   "dependencies": {

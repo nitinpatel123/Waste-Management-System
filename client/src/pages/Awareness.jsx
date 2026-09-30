@@ -23,8 +23,7 @@ export default function Awareness() {
       <h2 className="font-display text-3xl font-bold">Waste <span className="text-gradient">awareness</span></h2>
       <p className="text-slate-400 mt-2 mb-8">Proper segregation means a cleaner city. Click a card to see details.</p>
 
-      <div className="grid sm:grid-cols-2 gap-5">
-        {data.map((d, i) => {
+<div className="grid sm:grid-cols-2 gap-5 items-start">        {data.map((d, i) => {
           const Icon = d.icon;
           return (
             <motion.div key={d.title} layout initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}
